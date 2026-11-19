@@ -611,9 +611,10 @@ mod tests {
     }
 
     #[rstest]
-    #[case::mixed_albums(false)]
-    #[case::empty(true)]
-    fn map_editable_music_playlist(#[case] empty: bool) {
+    #[case::mixed_albums(false, false)]
+    #[case::empty(true, false)]
+    #[case::empty_without_contents(true, true)]
+    fn map_editable_music_playlist(#[case] empty: bool, #[case] omit_contents: bool) {
         let json_path = path!(*TESTFILES / "music_playlist" / "playlist_20240228_twoColumns.json");
         let mut document: serde_json::Value =
             serde_json::from_reader(File::open(json_path).unwrap()).unwrap();
@@ -627,7 +628,11 @@ mod tests {
             let shelf = document
                 .pointer_mut("/contents/twoColumnBrowseResultsRenderer/secondaryContents/sectionListRenderer/contents/0/musicPlaylistShelfRenderer")
                 .unwrap().as_object_mut().unwrap();
-            shelf.insert("contents".to_owned(), serde_json::json!([]));
+            if omit_contents {
+                shelf.remove("contents");
+            } else {
+                shelf.insert("contents".to_owned(), serde_json::json!([]));
+            }
             shelf.remove("continuations");
         }
         let playlist: response::MusicPlaylist = serde_json::from_value(document).unwrap();
@@ -648,6 +653,16 @@ mod tests {
                 .iter()
                 .any(|track| &track.album != first_album));
         }
+    }
+
+    #[test]
+    fn malformed_music_playlist_contents_are_not_an_empty_playlist() {
+        let json_path = path!(*TESTFILES / "music_playlist" / "playlist_20240228_twoColumns.json");
+        let mut document: serde_json::Value =
+            serde_json::from_reader(File::open(json_path).unwrap()).unwrap();
+        *document.pointer_mut("/contents/twoColumnBrowseResultsRenderer/secondaryContents/sectionListRenderer/contents/0/musicPlaylistShelfRenderer/contents").unwrap() =
+            serde_json::json!({"invalid": "not a track list"});
+        assert!(serde_json::from_value::<response::MusicPlaylist>(document).is_err());
     }
 
     #[rstest]

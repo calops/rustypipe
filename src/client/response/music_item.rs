@@ -49,6 +49,8 @@ pub(crate) struct MusicShelf {
     pub title: Option<String>,
     /// Playlist ID (only for playlists)
     pub playlist_id: Option<String>,
+    /// Empty playlists omit the contents array.
+    #[serde(default)]
     pub contents: MapResult<Vec<MusicResponseItem>>,
     /// Continuation token for fetching more (>100) playlist items
     #[serde(default)]
