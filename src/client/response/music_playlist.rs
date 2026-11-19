@@ -45,10 +45,45 @@ pub(crate) struct PlSectionList {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(from = "HeaderResponse")]
 pub(crate) struct Header {
-    #[serde(alias = "musicResponsiveHeaderRenderer")]
     pub music_detail_header_renderer: HeaderRenderer,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum HeaderResponse {
+    Direct {
+        #[serde(
+            rename = "musicDetailHeaderRenderer",
+            alias = "musicResponsiveHeaderRenderer"
+        )]
+        music_detail_header_renderer: HeaderRenderer,
+    },
+    Editable {
+        #[serde(rename = "musicEditablePlaylistDetailHeaderRenderer")]
+        music_editable_playlist_detail_header_renderer: EditablePlaylistHeader,
+    },
+}
+
+#[derive(Deserialize)]
+struct EditablePlaylistHeader {
+    header: Header,
+}
+
+impl From<HeaderResponse> for Header {
+    fn from(response: HeaderResponse) -> Self {
+        match response {
+            HeaderResponse::Direct {
+                music_detail_header_renderer,
+            } => Self {
+                music_detail_header_renderer,
+            },
+            HeaderResponse::Editable {
+                music_editable_playlist_detail_header_renderer,
+            } => music_editable_playlist_detail_header_renderer.header,
+        }
+    }
 }
 
 #[serde_as]

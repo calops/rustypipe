@@ -611,6 +611,46 @@ mod tests {
     }
 
     #[rstest]
+    #[case::mixed_albums(false)]
+    #[case::empty(true)]
+    fn map_editable_music_playlist(#[case] empty: bool) {
+        let json_path = path!(*TESTFILES / "music_playlist" / "playlist_20240228_twoColumns.json");
+        let mut document: serde_json::Value =
+            serde_json::from_reader(File::open(json_path).unwrap()).unwrap();
+        let header = document
+            .pointer_mut("/contents/twoColumnBrowseResultsRenderer/tabs/0/tabRenderer/content/sectionListRenderer/contents/0")
+            .unwrap();
+        *header = serde_json::json!({
+            "musicEditablePlaylistDetailHeaderRenderer": { "header": header.take() }
+        });
+        if empty {
+            let shelf = document
+                .pointer_mut("/contents/twoColumnBrowseResultsRenderer/secondaryContents/sectionListRenderer/contents/0/musicPlaylistShelfRenderer")
+                .unwrap().as_object_mut().unwrap();
+            shelf.insert("contents".to_owned(), serde_json::json!([]));
+            shelf.remove("continuations");
+        }
+        let playlist: response::MusicPlaylist = serde_json::from_value(document).unwrap();
+        let mapped: model::MusicPlaylist = playlist
+            .map_response(&MapRespCtx::test(
+                "RDCLAK5uy_kb7EBi6y3GrtJri4_ZH56Ms786DFEimbM",
+            ))
+            .unwrap()
+            .c;
+        assert_eq!(mapped.name, "Lofi Loft");
+        if empty {
+            assert!(mapped.tracks.items.is_empty());
+        } else {
+            let first_album = &mapped.tracks.items[0].album;
+            assert!(mapped
+                .tracks
+                .items
+                .iter()
+                .any(|track| &track.album != first_album));
+        }
+    }
+
+    #[rstest]
     #[case::one_artist("one_artist", "MPREb_nlBWQROfvjo")]
     #[case::various_artists("various_artists", "MPREb_8QkDeEIawvX")]
     #[case::single("single", "MPREb_bHfHGoy7vuv")]
